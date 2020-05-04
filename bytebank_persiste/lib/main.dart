@@ -3,9 +3,6 @@ import 'package:bytebank_persiste/screens/form_new_contact.dart';
 import 'package:flutter/material.dart';
 import 'package:bytebank_persiste/screens/dashboard.dart';
 
-import 'components/contact.dart';
-import 'database/app_database.dart';
-
 void main() {
   runApp(BytebankApp());
 }

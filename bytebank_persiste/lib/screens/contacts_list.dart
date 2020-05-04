@@ -3,6 +3,9 @@ import 'package:bytebank_persiste/database/contact_dao.dart';
 import 'package:bytebank_persiste/models/item_contact.dart';
 import 'package:bytebank_persiste/models/loading_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:local_auth/auth_strings.dart';
+import 'package:local_auth/local_auth.dart';
 
 class ContactsList extends StatefulWidget {
   @override
@@ -15,6 +18,7 @@ class ContactsList extends StatefulWidget {
 class ContactsListState extends State<ContactsList> {
   final String _titulo = 'Contacts';
   final ContactDao _dao = ContactDao();
+  final LocalAuthentication _localAuthentication = LocalAuthentication();
 
   @override
   Widget build(BuildContext context) {
@@ -50,18 +54,91 @@ class ContactsListState extends State<ContactsList> {
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.pushNamed(context, '/contacts_list/form_new_contact').then((context) {
-            if (context!= null) {
-              print("chegou no then do context");
-              setState(() {
-                print("carregado");
+        onPressed: () async {
+          if(await _isBiometricAvailable()){
+            await _getListOfBiometricTypes();
+            if(await _authenticateUser()){
+              Navigator.pushNamed(context, '/contacts_list/form_new_contact').then((context) {
+                if (context!= null) {
+                  print("chegou no then do context");
+                  setState(() {
+                    print("carregado");
+                  });
+                }
               });
+            } else {
+              print('Nao permitido');
             }
-          });
+          }
         },
         child: Icon(Icons.add),
       ),
     );
   }
+
+  Future<bool> _isBiometricAvailable() async {
+    bool isAvailable = false;
+    try {
+      isAvailable = await _localAuthentication.canCheckBiometrics;
+    } on PlatformException catch (e) {
+      print(e);
+    }
+
+    if (!mounted) return isAvailable;
+
+    isAvailable
+        ? print('Biometric is available!')
+        : print('Biometric is unavailable.');
+
+    return isAvailable;
+  }
+
+  Future<void> _getListOfBiometricTypes() async {
+    List<BiometricType> listOfBiometrics;
+    try {
+      listOfBiometrics = await _localAuthentication.getAvailableBiometrics();
+    } on PlatformException catch (e) {
+      print(e);
+    }
+
+    if (!mounted) return;
+
+    print(listOfBiometrics);
+  }
+
+  static const androidStrings = const AndroidAuthMessages(
+    fingerprintHint: 'Clica o botao ai źe',
+    fingerprintNotRecognized: 'Voce tem a permissao?',
+    cancelButton: 'Cancela mané',
+    fingerprintSuccess: 'Adiciona ai, playboy',
+    signInTitle: 'Se quiser entrar, o dedo deve pertencer ao celular dono',
+    fingerprintRequiredTitle: 'Autentica ai'
+  );
+
+  Future<bool> _authenticateUser() async {
+    bool isAuthenticated = false;
+    try {
+      isAuthenticated = await _localAuthentication.authenticateWithBiometrics(
+        localizedReason:
+        "Please authenticate to add a new Contact",
+        useErrorDialogs: true,
+        stickyAuth: true,
+      );
+    } on PlatformException catch (e) {
+      print(e);
+    }
+
+    if (!mounted) return false;
+
+    isAuthenticated
+        ? print('User is authenticated!')
+        : print('User is not authenticated.');
+
+    if(isAuthenticated){
+      return true;
+    } else {
+      return false;
+    }
+  }
+
 }
